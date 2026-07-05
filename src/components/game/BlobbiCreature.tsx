@@ -6,13 +6,15 @@ interface BlobbiCreatureProps {
   mood: BlobbiMood;
   currentAction: ActionType | null;
   className?: string;
+  /** Override the body color (hex). Falls back to mood-based color. */
+  color?: string;
 }
 
 /**
  * SVG-based pixel art Blobbi creature with mood-based expressions
  * and animation states.
  */
-export function BlobbiCreature({ stage, mood, currentAction, className }: BlobbiCreatureProps) {
+export function BlobbiCreature({ stage, mood, currentAction, className, color }: BlobbiCreatureProps) {
   const animationClass = (() => {
     if (currentAction === 'feed') return 'animate-blobbi-eat';
     if (currentAction === 'play') return 'animate-blobbi-bounce';
@@ -48,7 +50,7 @@ export function BlobbiCreature({ stage, mood, currentAction, className }: Blobbi
 
       {/* The Blobbi */}
       <div className={cn('relative z-10', animationClass)} style={{ width: size.w, height: size.h }}>
-        <BlobbiSVG stage={stage} mood={mood} width={size.w} height={size.h} />
+        <BlobbiSVG stage={stage} mood={mood} width={size.w} height={size.h} overrideColor={color} />
       </div>
 
       {/* Action effects */}
@@ -122,8 +124,8 @@ function getStageFeatures(stage: EvolutionStage) {
 }
 
 /** SVG pixel art Blobbi at different evolution stages — pure rendering, no hooks */
-function BlobbiSVG({ stage, mood, width, height }: { stage: EvolutionStage; mood: BlobbiMood; width: number; height: number }) {
-  const bodyColor = getBodyColor(mood);
+function BlobbiSVG({ stage, mood, width, height, overrideColor }: { stage: EvolutionStage; mood: BlobbiMood; width: number; height: number; overrideColor?: string }) {
+  const bodyColor = overrideColor ?? getBodyColor(mood);
   const cheekColor = '#FF9999';
 
   if (stage === 'egg') {

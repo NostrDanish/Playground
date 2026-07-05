@@ -19,14 +19,29 @@ interface UseBlobbiStateResult {
   refetch: () => void;
 }
 
-export function useBlobbiState(pubkey?: string): UseBlobbiStateResult {
+/**
+ * Fetch the Blobbi Buddies companion state.
+ *
+ * @param pubkey  — override the target user (for visiting friends)
+ * @param dtag   — override the d-tag (for multi-Blobbi support).
+ *                  Defaults to `"blobbi-buddies"` for backwards compat.
+ * @param blobbiName — custom name to use in the computed state
+ * @param blobbiColor — custom body color hex
+ */
+export function useBlobbiState(
+  pubkey?: string,
+  dtag?: string,
+  blobbiName?: string,
+  blobbiColor?: string,
+): UseBlobbiStateResult {
   const { nostr } = useNostr();
   const { user } = useCurrentUser();
 
   const targetPubkey = pubkey ?? user?.pubkey;
+  const targetDtag = dtag ?? DTAG_BUDDIES;
 
   const query = useQuery<BlobbiCompanionState>({
-    queryKey: ['blobbi-buddies', 'state', targetPubkey ?? ''],
+    queryKey: ['blobbi-buddies', 'state', targetPubkey ?? '', targetDtag],
     queryFn: async (c) => {
       if (!targetPubkey) {
         return createDefaultCompanionState();
@@ -36,7 +51,7 @@ export function useBlobbiState(pubkey?: string): UseBlobbiStateResult {
         [{
           kinds: [KIND_BLOBBI_STATE],
           authors: [targetPubkey],
-          '#d': [DTAG_BUDDIES],
+          '#d': [targetDtag],
           limit: 1,
         }],
         { signal: c.signal },
@@ -77,7 +92,7 @@ export function useBlobbiState(pubkey?: string): UseBlobbiStateResult {
   });
 
   const companion = query.data ?? createDefaultCompanionState();
-  const computed = computeBlobbiState(companion);
+  const computed = computeBlobbiState(companion, blobbiName, blobbiColor);
 
   return {
     companion,

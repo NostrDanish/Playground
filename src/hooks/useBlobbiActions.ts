@@ -22,25 +22,32 @@ interface UseBlobbiActionsResult {
   lastAction: ActionType | null;
 }
 
-export function useBlobbiActions(): UseBlobbiActionsResult {
+/**
+ * @param dtag — override the d-tag for multi-Blobbi. Defaults to `"blobbi-buddies"`.
+ * @param blobbiName — the active Blobbi's name (used in action messages).
+ */
+export function useBlobbiActions(dtag?: string, blobbiName?: string): UseBlobbiActionsResult {
   const { user } = useCurrentUser();
   const { mutateAsync: publishEvent } = useNostrPublish();
-  const { companion } = useBlobbiState();
+  const activeDtag = dtag ?? DTAG_BUDDIES;
+  const { companion } = useBlobbiState(undefined, activeDtag);
   const queryClient = useQueryClient();
   const [isPerforming, setIsPerforming] = useState(false);
   const [lastAction, setLastAction] = useState<ActionType | null>(null);
+
+  const name = blobbiName ?? 'Blobbi';
 
   const publishCompanionState = useCallback(async (state: BlobbiCompanionState) => {
     await publishEvent({
       kind: KIND_BLOBBI_STATE,
       content: JSON.stringify(state),
       tags: [
-        ['d', DTAG_BUDDIES],
+        ['d', activeDtag],
         ['alt', 'Blobbi Buddies companion state'],
       ],
     });
     await queryClient.invalidateQueries({ queryKey: ['blobbi-buddies'] });
-  }, [publishEvent, queryClient]);
+  }, [publishEvent, queryClient, activeDtag]);
 
   const performAction = useCallback(async (action: ActionType, targetPubkey?: string) => {
     if (!user) throw new Error('Must be logged in');
@@ -64,10 +71,10 @@ export function useBlobbiActions(): UseBlobbiActionsResult {
       }
 
       const messages: Record<ActionType, string> = {
-        feed: `${emoji} Fed my Blobbi a tasty snack!`,
-        play: `${emoji} Played with my Blobbi!`,
-        clean: `${emoji} Gave my Blobbi a nice bath!`,
-        sleep: `${emoji} Tucked my Blobbi into bed!`,
+        feed: `${emoji} Fed ${name} a tasty snack!`,
+        play: `${emoji} Played with ${name}!`,
+        clean: `${emoji} Gave ${name} a nice bath!`,
+        sleep: `${emoji} Tucked ${name} into bed!`,
         visit: `${emoji} Visited a friend's Blobbi!`,
       };
 
@@ -79,11 +86,10 @@ export function useBlobbiActions(): UseBlobbiActionsResult {
         tags: actionTags,
       });
 
-      // 2. Update companion state with daily progress + streak + XP
+      // 2. Update companion state
       const resetDaily = companion.dailyDate !== today;
       const dailyProgress = resetDaily ? {} : { ...companion.dailyProgress };
 
-      // Map action to daily task progress
       const dailyMapping: Record<string, string> = {
         feed: 'feed-3',
         play: 'play-2',
@@ -95,7 +101,6 @@ export function useBlobbiActions(): UseBlobbiActionsResult {
         dailyProgress[dailyKey] = (dailyProgress[dailyKey] ?? 0) + 1;
       }
 
-      // Streak logic
       let streak = companion.streak ?? 0;
       const lastStreakDay = companion.lastStreakDay ?? '';
       if (lastStreakDay === today) {
@@ -123,7 +128,6 @@ export function useBlobbiActions(): UseBlobbiActionsResult {
         dailyDate: today,
       };
 
-      // Track friend interactions
       if (isVisiting) {
         const existing = updatedCompanion.friendCare[targetPubkey] ?? {
           feedCount: 0,
@@ -149,7 +153,7 @@ export function useBlobbiActions(): UseBlobbiActionsResult {
       setIsPerforming(false);
       setTimeout(() => setLastAction(null), 1200);
     }
-  }, [user, companion, publishEvent, publishCompanionState]);
+  }, [user, companion, name, publishEvent, publishCompanionState]);
 
   return {
     performAction,

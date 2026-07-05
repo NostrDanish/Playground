@@ -5,9 +5,11 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useBlobbiState } from '@/hooks/useBlobbiState';
 import { useBlobbiActions } from '@/hooks/useBlobbiActions';
 import { useBlobbiActivity } from '@/hooks/useBlobbiActivity';
+import { useBlobbiRoster } from '@/hooks/useBlobbiRoster';
 
 import { GameHeader } from '@/components/game/GameHeader';
 import { BlobbiCreature } from '@/components/game/BlobbiCreature';
+import { BlobbiSwitcher } from '@/components/game/BlobbiSwitcher';
 import { SceneBackground } from '@/components/game/SceneBackground';
 import { StatBar } from '@/components/game/StatBar';
 import { ActionButtons } from '@/components/game/ActionButtons';
@@ -26,12 +28,18 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
-import { cn } from '@/lib/utils';
 
 const Index = () => {
   const { user } = useCurrentUser();
-  const { companion, computed, isLoading: stateLoading } = useBlobbiState();
-  const { performAction, publishCompanionState, isPerforming, lastAction } = useBlobbiActions();
+  const { activeBlobbi, activeDtag } = useBlobbiRoster();
+
+  // Pass the active Blobbi's d-tag, name, and color into the state + actions hooks
+  const { companion, computed, isLoading: stateLoading } = useBlobbiState(
+    undefined, activeDtag, activeBlobbi.name, activeBlobbi.color,
+  );
+  const { performAction, publishCompanionState, isPerforming, lastAction } = useBlobbiActions(
+    activeDtag, activeBlobbi.name,
+  );
   const { data: activities = [], isLoading: activityLoading } = useBlobbiActivity(user?.pubkey);
 
   const [visitingFriend, setVisitingFriend] = useState<string | null>(null);
@@ -76,7 +84,6 @@ const Index = () => {
     );
   }
 
-  // XP to next level
   const xpInLevel = computed.xp % 50;
   const xpNeeded = 50;
 
@@ -94,6 +101,9 @@ const Index = () => {
         {/* Welcome state for logged-out users */}
         {!user && <WelcomeCard />}
 
+        {/* Blobbi switcher — pick which Blobbi to play with */}
+        {user && <BlobbiSwitcher />}
+
         {/* Pet display area with scene */}
         <SceneBackground scene="park">
           <div className="flex items-center justify-center py-8 pb-12">
@@ -104,6 +114,7 @@ const Index = () => {
                 stage={computed.stage}
                 mood={computed.mood}
                 currentAction={lastAction}
+                color={activeBlobbi.color}
                 className="w-36 h-36"
               />
             )}
@@ -149,7 +160,7 @@ const Index = () => {
           />
         )}
 
-        {/* Tabs for everything */}
+        {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="w-full grid grid-cols-6">
             <TabsTrigger value="daily" className="text-[10px] px-1">

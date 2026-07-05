@@ -362,6 +362,7 @@ export interface ComputedBlobbiState {
   mood: BlobbiMood;
   stage: EvolutionStage;
   name: string;
+  color: string | undefined;
   totalCare: number;
   xp: number;
   streak: number;
@@ -414,7 +415,11 @@ export function computeLevel(xp: number): number {
   return Math.floor(xp / 50) + 1;
 }
 
-export function computeBlobbiState(companion: BlobbiCompanionState): ComputedBlobbiState {
+export function computeBlobbiState(
+  companion: BlobbiCompanionState,
+  customName?: string,
+  customColor?: string,
+): ComputedBlobbiState {
   const now = Math.floor(Date.now() / 1000);
   const hoursSinceLastInteraction = Math.max(0, (now - companion.lastInteraction) / 3600);
 
@@ -441,7 +446,8 @@ export function computeBlobbiState(companion: BlobbiCompanionState): ComputedBlo
     energy,
     mood,
     stage,
-    name: 'Blobbi',
+    name: customName ?? 'Blobbi',
+    color: customColor,
     totalCare: companion.stats.totalCare,
     xp,
     streak: companion.streak ?? 0,
