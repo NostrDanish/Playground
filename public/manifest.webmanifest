@@ -1,0 +1,9 @@
+{
+  "name": "Blobbi Buddies",
+  "short_name": "Blobbi",
+  "description": "A Tamagotchi-style cooperative pet game on Nostr",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#FFF8F0",
+  "theme_color": "#E84580"
+}
