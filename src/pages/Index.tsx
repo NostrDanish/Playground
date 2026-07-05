@@ -1,6 +1,5 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useSeoMeta } from '@unhead/react';
-// Blobbi Buddies v1.0 - Tamagotchi-style Nostr pet game
 
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useBlobbiState } from '@/hooks/useBlobbiState';
@@ -9,6 +8,7 @@ import { useBlobbiActivity } from '@/hooks/useBlobbiActivity';
 
 import { GameHeader } from '@/components/game/GameHeader';
 import { BlobbiCreature } from '@/components/game/BlobbiCreature';
+import { SceneBackground } from '@/components/game/SceneBackground';
 import { StatBar } from '@/components/game/StatBar';
 import { ActionButtons } from '@/components/game/ActionButtons';
 import { ActivityFeed } from '@/components/game/ActivityFeed';
@@ -16,32 +16,56 @@ import { FriendsList } from '@/components/game/FriendsList';
 import { CoopTaskPanel } from '@/components/game/CoopTaskPanel';
 import { ChatPanel } from '@/components/game/ChatPanel';
 import { VisitFriend } from '@/components/game/VisitFriend';
+import { DailyTasks } from '@/components/game/DailyTasks';
+import { MiniGames } from '@/components/game/MiniGames';
+import { PhotoDate } from '@/components/game/PhotoDate';
 import { LoginArea } from '@/components/auth/LoginArea';
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 
 const Index = () => {
   const { user } = useCurrentUser();
-  const { computed, isLoading: stateLoading } = useBlobbiState();
-  const { performAction, isPerforming, lastAction } = useBlobbiActions();
+  const { companion, computed, isLoading: stateLoading } = useBlobbiState();
+  const { performAction, publishCompanionState, isPerforming, lastAction } = useBlobbiActions();
   const { data: activities = [], isLoading: activityLoading } = useBlobbiActivity(user?.pubkey);
 
   const [visitingFriend, setVisitingFriend] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState('pet');
+  const [activeTab, setActiveTab] = useState('daily');
 
   useSeoMeta({
     title: 'Blobbi Buddies — Nostr Pet Game',
     description: 'A Tamagotchi-style cooperative pet game on Nostr. Care for your Blobbi solo or with friends!',
   });
 
-  // If visiting a friend, show that view
+  const handlePuzzleWin = useCallback(async () => {
+    if (!user) return;
+    await publishCompanionState({
+      ...companion,
+      xp: (companion.xp ?? 0) + 15,
+      puzzleWins: (companion.puzzleWins ?? 0) + 1,
+      dailyProgress: {
+        ...companion.dailyProgress,
+        'puzzle-win': (companion.dailyProgress['puzzle-win'] ?? 0) + 1,
+      },
+    });
+  }, [user, companion, publishCompanionState]);
+
+  // Visiting friend view
   if (visitingFriend) {
     return (
       <div className="min-h-screen bg-background flex flex-col">
-        <GameHeader stage={computed.stage} totalCare={computed.totalCare} />
+        <GameHeader
+          stage={computed.stage}
+          totalCare={computed.totalCare}
+          level={computed.level}
+          xp={computed.xp}
+          streak={computed.streak}
+        />
         <div className="flex-1 max-w-lg mx-auto w-full p-4">
           <VisitFriend
             friendPubkey={visitingFriend}
@@ -52,56 +76,60 @@ const Index = () => {
     );
   }
 
+  // XP to next level
+  const xpInLevel = computed.xp % 50;
+  const xpNeeded = 50;
+
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      <GameHeader stage={computed.stage} totalCare={computed.totalCare} />
+      <GameHeader
+        stage={computed.stage}
+        totalCare={computed.totalCare}
+        level={computed.level}
+        xp={computed.xp}
+        streak={computed.streak}
+      />
 
       <main className="flex-1 max-w-lg mx-auto w-full px-4 py-4 space-y-4">
         {/* Welcome state for logged-out users */}
-        {!user && (
-          <WelcomeCard />
-        )}
+        {!user && <WelcomeCard />}
 
-        {/* Pet display area */}
-        <div className="relative">
-          {/* Background scene */}
-          <div className={cn(
-            'rounded-2xl overflow-hidden relative',
-            'bg-gradient-to-b from-sky-100 via-sky-50 to-green-100',
-            'dark:from-indigo-950 dark:via-purple-950 dark:to-emerald-950',
-          )}>
-            {/* Clouds */}
-            <div className="absolute top-3 left-4 text-white/40 dark:text-white/10 text-lg">☁️</div>
-            <div className="absolute top-6 right-8 text-white/30 dark:text-white/8 text-sm">☁️</div>
+        {/* Pet display area with scene */}
+        <SceneBackground scene="park">
+          <div className="flex items-center justify-center py-8 pb-12">
+            {stateLoading ? (
+              <Skeleton className="w-28 h-28 rounded-full" />
+            ) : (
+              <BlobbiCreature
+                stage={computed.stage}
+                mood={computed.mood}
+                currentAction={lastAction}
+                className="w-36 h-36"
+              />
+            )}
+          </div>
 
-            {/* Ground */}
-            <div className="absolute bottom-0 inset-x-0 h-8 bg-gradient-to-t from-green-200/60 to-transparent dark:from-emerald-900/40" />
-            <div className="absolute bottom-1 left-6 text-green-600/30 dark:text-green-400/20 text-xs">🌿</div>
-            <div className="absolute bottom-2 right-10 text-green-600/30 dark:text-green-400/20 text-xs">🌱</div>
-            <div className="absolute bottom-1 left-1/2 text-green-600/20 dark:text-green-400/15 text-[10px]">🌼</div>
-
-            {/* Blobbi */}
-            <div className="flex items-center justify-center py-8 pb-12">
-              {stateLoading ? (
-                <Skeleton className="w-28 h-28 rounded-full" />
-              ) : (
-                <BlobbiCreature
-                  stage={computed.stage}
-                  mood={computed.mood}
-                  currentAction={lastAction}
-                  className="w-36 h-36"
-                />
-              )}
-            </div>
-
-            {/* Name plate */}
-            <div className="absolute bottom-2 left-1/2 -translate-x-1/2">
-              <div className="bg-white/80 dark:bg-black/40 backdrop-blur-sm rounded-full px-3 py-0.5">
-                <span className="text-xs font-semibold">{computed.name}</span>
-              </div>
+          {/* Name plate with level */}
+          <div className="absolute bottom-2 left-1/2 -translate-x-1/2 z-20">
+            <div className="bg-white/80 dark:bg-black/50 backdrop-blur-sm rounded-full px-3 py-0.5 flex items-center gap-2">
+              <span className="text-xs font-semibold">{computed.name}</span>
+              <Badge variant="outline" className="text-[9px] px-1 py-0 h-4 bg-white/50 dark:bg-black/30">
+                Lv.{computed.level}
+              </Badge>
             </div>
           </div>
-        </div>
+        </SceneBackground>
+
+        {/* XP Bar */}
+        {user && (
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] text-muted-foreground w-6">XP</span>
+            <Progress value={(xpInLevel / xpNeeded) * 100} className="h-1.5 flex-1" />
+            <span className="text-[10px] text-muted-foreground tabular-nums w-10 text-right">
+              {xpInLevel}/{xpNeeded}
+            </span>
+          </div>
+        )}
 
         {/* Stats */}
         <Card className="border-2 rounded-2xl shadow-none">
@@ -113,7 +141,7 @@ const Index = () => {
           </CardContent>
         </Card>
 
-        {/* Action buttons (only when logged in) */}
+        {/* Action buttons */}
         {user && (
           <ActionButtons
             onAction={performAction}
@@ -121,27 +149,57 @@ const Index = () => {
           />
         )}
 
-        {/* Tabs for different panels */}
+        {/* Tabs for everything */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="w-full">
-            <TabsTrigger value="pet" className="flex-1 text-xs">
-              📋 Activity
+          <TabsList className="w-full grid grid-cols-6">
+            <TabsTrigger value="daily" className="text-[10px] px-1">
+              ⭐ Daily
             </TabsTrigger>
-            <TabsTrigger value="friends" className="flex-1 text-xs">
-              👫 Friends
+            <TabsTrigger value="games" className="text-[10px] px-1">
+              🎮 Games
             </TabsTrigger>
-            <TabsTrigger value="coop" className="flex-1 text-xs">
+            <TabsTrigger value="photos" className="text-[10px] px-1">
+              📸 Photos
+            </TabsTrigger>
+            <TabsTrigger value="coop" className="text-[10px] px-1">
               🤝 Co-op
             </TabsTrigger>
-            <TabsTrigger value="chat" className="flex-1 text-xs">
+            <TabsTrigger value="friends" className="text-[10px] px-1">
+              👫 Pals
+            </TabsTrigger>
+            <TabsTrigger value="chat" className="text-[10px] px-1">
               💬 Chat
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="pet">
+          <TabsContent value="daily">
             <Card className="border-2 rounded-2xl shadow-none">
               <CardContent className="pt-4 pb-4">
-                <ActivityFeed events={activities} isLoading={activityLoading} />
+                <DailyTasks />
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="games">
+            <Card className="border-2 rounded-2xl shadow-none">
+              <CardContent className="pt-4 pb-4">
+                <MiniGames onWin={handlePuzzleWin} />
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="photos">
+            <Card className="border-2 rounded-2xl shadow-none">
+              <CardContent className="pt-4 pb-4">
+                <PhotoDate />
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="coop">
+            <Card className="border-2 rounded-2xl shadow-none">
+              <CardContent className="pt-4 pb-4">
+                <CoopTaskPanel />
               </CardContent>
             </Card>
           </TabsContent>
@@ -152,14 +210,10 @@ const Index = () => {
                 <FriendsList
                   onVisitFriend={(pubkey) => setVisitingFriend(pubkey)}
                 />
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="coop">
-            <Card className="border-2 rounded-2xl shadow-none">
-              <CardContent className="pt-4 pb-4">
-                <CoopTaskPanel />
+                <div className="mt-4 pt-4 border-t">
+                  <h4 className="text-xs font-semibold text-muted-foreground mb-2">Recent Activity</h4>
+                  <ActivityFeed events={activities} isLoading={activityLoading} />
+                </div>
               </CardContent>
             </Card>
           </TabsContent>
@@ -203,7 +257,7 @@ function WelcomeCard() {
         <div>
           <h2 className="text-lg font-bold">Welcome to Blobbi Buddies!</h2>
           <p className="text-sm text-muted-foreground mt-1 max-w-xs mx-auto">
-            A Tamagotchi-style pet game on Nostr. Log in to start caring for your Blobbi!
+            A Tamagotchi-style pet game on Nostr. Care for your Blobbi, play mini-games, take photos with friends, and complete daily tasks!
           </p>
         </div>
         <LoginArea className="max-w-60 mx-auto" />

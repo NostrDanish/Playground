@@ -68,12 +68,14 @@ export function CoopTaskPanel({ className }: CoopTaskPanelProps) {
     );
   }
 
+  const taskEntries = Object.entries(COOP_TASKS) as [CoopTaskType, typeof COOP_TASKS[CoopTaskType]][];
+
   return (
     <div className={cn('space-y-3', className)}>
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-semibold flex items-center gap-1.5">
           <Users className="h-4 w-4" />
-          Co-op Tasks
+          Co-op Activities
         </h3>
         <Button
           variant="outline"
@@ -81,7 +83,7 @@ export function CoopTaskPanel({ className }: CoopTaskPanelProps) {
           className="h-7 text-xs rounded-lg"
           onClick={() => setShowCreateDialog(true)}
         >
-          + New Task
+          + New Activity
         </Button>
       </div>
 
@@ -91,13 +93,13 @@ export function CoopTaskPanel({ className }: CoopTaskPanelProps) {
           <Skeleton className="h-16 w-full rounded-lg" />
         </div>
       ) : tasks.length === 0 ? (
-        <div className="text-center py-4 px-3 rounded-lg border border-dashed">
+        <div className="text-center py-4 px-3 rounded-xl border border-dashed">
           <p className="text-sm text-muted-foreground">
-            No active tasks. Invite a friend to start one!
+            No active activities. Invite a friend!
           </p>
         </div>
       ) : (
-        <ScrollArea className="h-[180px]">
+        <ScrollArea className="h-[200px]">
           <div className="space-y-2 pr-3">
             {tasks.map((task) => {
               const info = COOP_TASKS[task.content.taskType];
@@ -123,16 +125,16 @@ export function CoopTaskPanel({ className }: CoopTaskPanelProps) {
       <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle>Start a Co-op Task</DialogTitle>
+            <DialogTitle>Start an Activity</DialogTitle>
             <DialogDescription>
-              Choose a task and invite a friend to complete it together!
+              Pick something fun to do with a friend!
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-2">
-              {(Object.entries(COOP_TASKS) as [CoopTaskType, typeof COOP_TASKS[CoopTaskType]][]).map(
-                ([type, info]) => (
+            <ScrollArea className="h-[220px]">
+              <div className="grid grid-cols-2 gap-2 pr-3">
+                {taskEntries.map(([type, info]) => (
                   <button
                     key={type}
                     className={cn(
@@ -144,12 +146,11 @@ export function CoopTaskPanel({ className }: CoopTaskPanelProps) {
                     onClick={() => setSelectedTask(type)}
                   >
                     <span className="text-2xl">{info.emoji}</span>
-                    <span className="text-xs font-medium">{info.label}</span>
-                    <span className="text-[10px] text-muted-foreground">{info.duration}s</span>
+                    <span className="text-[10px] font-medium leading-tight">{info.label}</span>
                   </button>
-                ),
-              )}
-            </div>
+                ))}
+              </div>
+            </ScrollArea>
 
             <div>
               <label className="text-sm font-medium mb-1.5 block">
@@ -177,10 +178,7 @@ export function CoopTaskPanel({ className }: CoopTaskPanelProps) {
               className="w-full rounded-xl"
             >
               {isCreating ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Creating...
-                </>
+                <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Creating...</>
               ) : (
                 `Start ${COOP_TASKS[selectedTask].emoji} ${COOP_TASKS[selectedTask].label}`
               )}
@@ -237,7 +235,7 @@ function TaskItem({
           className="w-full h-7 text-xs rounded-lg"
           onClick={onComplete}
         >
-          Complete Task ✨
+          Complete Activity ✨
         </Button>
       )}
     </div>

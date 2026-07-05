@@ -13,7 +13,7 @@ Blobbi Buddies is a Tamagotchi-style cooperative pet game built on Nostr. It rea
 - **NIP**: Ditto-specific (addressable/parameterized replaceable)
 - **`d` tag**: `"blobbi"`
 - **Content**: JSON with pet state: `{ hunger, mood, evolution, name, ... }`
-- **Authors**: Each Blobbi owner's pubkey
+- **Authors**: Each Blobbi owner
 
 This kind is **read-only** in Blobbi Buddies. We never publish events of this kind.
 
@@ -43,7 +43,17 @@ This kind is **read-only** in Blobbi Buddies. We never publish events of this ki
     }
   },
   "coopTasksCompleted": 0,
-  "lastInteraction": 1700000000
+  "lastInteraction": 1700000000,
+  "streak": 3,
+  "lastStreakDay": "2026-07-05",
+  "xp": 150,
+  "photos": ["https://blossom.example.com/abc.jpg"],
+  "dailyProgress": {
+    "feed-3": 2,
+    "play-2": 1
+  },
+  "dailyDate": "2026-07-05",
+  "puzzleWins": 5
 }
 ```
 
@@ -59,14 +69,15 @@ This kind is **read-only** in Blobbi Buddies. We never publish events of this ki
 ## Kind 7813 — Blobbi Action Event
 
 - **Range**: Regular (1000–9999)
-- **Content**: Human-readable description of the action, e.g. `"🍎 Fed Blobbi an apple!"`
+- **Content**: Human-readable description of the action, e.g. `"🍎 Fed my Blobbi a tasty snack!"`
 
 ### Tags
 
 | Tag | Description |
 |-----|-------------|
-| `t` | Action type: `"blobbi-feed"`, `"blobbi-play"`, `"blobbi-clean"`, `"blobbi-sleep"`, `"blobbi-visit"` |
-| `p` | Pubkey of the Blobbi owner (if visiting someone else's pet) |
+| `t` | Action type: `"blobbi-feed"`, `"blobbi-play"`, `"blobbi-clean"`, `"blobbi-sleep"`, `"blobbi-visit"`, `"blobbi-photo"` |
+| `p` | Pubkey of the Blobbi owner (if visiting/interacting with someone else's pet) |
+| `imeta` | NIP-94 file metadata for photos (when `t` = `"blobbi-photo"`) |
 | `alt` | Human-readable description (NIP-31) |
 
 These events form a transparent activity feed for all care actions.
@@ -80,7 +91,7 @@ These events form a transparent activity feed for all care actions.
 
 ```json
 {
-  "taskType": "walk" | "build-nest" | "explore" | "treasure-hunt",
+  "taskType": "walk" | "build-nest" | "explore" | "treasure-hunt" | "picnic" | "restaurant" | "beach" | "stargazing" | "garden" | "movie-night",
   "status": "pending" | "active" | "completed" | "expired",
   "participants": ["<hex-pubkey-1>", "<hex-pubkey-2>"],
   "progress": 0,
@@ -95,13 +106,30 @@ These events form a transparent activity feed for all care actions.
 |-----|-------------|
 | `t` | `"blobbi-coop"` — makes co-op tasks discoverable |
 | `p` | Pubkey of each participant (one tag per participant) |
+| `e` | Reference to original task event (for completion events) |
 | `alt` | Human-readable description (NIP-31) |
 
 ---
 
 ## Chat
 
-In-game chat uses standard **NIP-17 Direct Messages** (kind 14, wrapped in NIP-59 Gift Wrap). This ensures full interoperability with Lief and other Nostr chat clients.
+In-game public chat uses standard kind `1` notes tagged with `#blobbichat`. For private DMs, users should use a dedicated chat client like Lief which supports NIP-17 gift-wrapped messages.
+
+---
+
+## Game Features
+
+### Daily Tasks
+Rotating daily challenges tracked in companion state `dailyProgress`. Tasks reset each day based on `dailyDate`. XP is awarded for completion.
+
+### Mini Games
+Three puzzle games (Memory Match, Color Rush, Feed Frenzy) that award XP and progress the `puzzle-win` daily task.
+
+### Photo Dates
+Users upload real photos via Blossom, which are stored in companion state `photos` array and published as action events with `imeta` tags and `t` = `"blobbi-photo"`.
+
+### Streaks
+Daily care streaks tracked via `streak` and `lastStreakDay`. Streaks increment when the user performs any care action on consecutive days.
 
 ---
 
@@ -112,3 +140,5 @@ All game-related events use `t` tags prefixed with `blobbi-` for relay-level fil
 - `#t: ["blobbi-play"]` — play actions
 - `#t: ["blobbi-coop"]` — co-op tasks
 - `#t: ["blobbi-visit"]` — visit actions
+- `#t: ["blobbi-photo"]` — photo date posts
+- `#t: ["blobbichat"]` — in-game chat messages

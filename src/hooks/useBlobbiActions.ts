@@ -10,12 +10,14 @@ import {
   DTAG_BUDDIES,
   ACTION_TAGS,
   ACTION_EMOJI,
+  getTodayString,
   type ActionType,
   type BlobbiCompanionState,
 } from '@/lib/gameTypes';
 
 interface UseBlobbiActionsResult {
   performAction: (action: ActionType, targetPubkey?: string) => Promise<void>;
+  publishCompanionState: (state: BlobbiCompanionState) => Promise<void>;
   isPerforming: boolean;
   lastAction: ActionType | null;
 }
@@ -28,6 +30,18 @@ export function useBlobbiActions(): UseBlobbiActionsResult {
   const [isPerforming, setIsPerforming] = useState(false);
   const [lastAction, setLastAction] = useState<ActionType | null>(null);
 
+  const publishCompanionState = useCallback(async (state: BlobbiCompanionState) => {
+    await publishEvent({
+      kind: KIND_BLOBBI_STATE,
+      content: JSON.stringify(state),
+      tags: [
+        ['d', DTAG_BUDDIES],
+        ['alt', 'Blobbi Buddies companion state'],
+      ],
+    });
+    await queryClient.invalidateQueries({ queryKey: ['blobbi-buddies'] });
+  }, [publishEvent, queryClient]);
+
   const performAction = useCallback(async (action: ActionType, targetPubkey?: string) => {
     if (!user) throw new Error('Must be logged in');
 
@@ -37,8 +51,9 @@ export function useBlobbiActions(): UseBlobbiActionsResult {
     try {
       const isVisiting = targetPubkey && targetPubkey !== user.pubkey;
       const emoji = ACTION_EMOJI[action];
+      const today = getTodayString();
 
-      // 1. Publish the action event (visible in feeds)
+      // 1. Publish the action event
       const actionTags: string[][] = [
         ['t', ACTION_TAGS[action]],
         ['alt', `${emoji} Blobbi Buddies: ${action} action`],
@@ -64,7 +79,32 @@ export function useBlobbiActions(): UseBlobbiActionsResult {
         tags: actionTags,
       });
 
-      // 2. Update companion state
+      // 2. Update companion state with daily progress + streak + XP
+      const resetDaily = companion.dailyDate !== today;
+      const dailyProgress = resetDaily ? {} : { ...companion.dailyProgress };
+
+      // Map action to daily task progress
+      const dailyMapping: Record<string, string> = {
+        feed: 'feed-3',
+        play: 'play-2',
+        clean: 'clean-1',
+        visit: 'visit-friend',
+      };
+      const dailyKey = dailyMapping[action];
+      if (dailyKey) {
+        dailyProgress[dailyKey] = (dailyProgress[dailyKey] ?? 0) + 1;
+      }
+
+      // Streak logic
+      let streak = companion.streak ?? 0;
+      const lastStreakDay = companion.lastStreakDay ?? '';
+      if (lastStreakDay === today) {
+        // Already counted today
+      } else {
+        const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+        streak = lastStreakDay === yesterday ? streak + 1 : 1;
+      }
+
       const updatedCompanion: BlobbiCompanionState = {
         ...companion,
         stats: {
@@ -76,6 +116,11 @@ export function useBlobbiActions(): UseBlobbiActionsResult {
           totalCare: companion.stats.totalCare + 1,
         },
         lastInteraction: Math.floor(Date.now() / 1000),
+        xp: (companion.xp ?? 0) + 5,
+        streak,
+        lastStreakDay: today,
+        dailyProgress,
+        dailyDate: today,
       };
 
       // Track friend interactions
@@ -99,27 +144,16 @@ export function useBlobbiActions(): UseBlobbiActionsResult {
         };
       }
 
-      await publishEvent({
-        kind: KIND_BLOBBI_STATE,
-        content: JSON.stringify(updatedCompanion),
-        tags: [
-          ['d', DTAG_BUDDIES],
-          ['alt', 'Blobbi Buddies companion state'],
-        ],
-      });
-
-      // Invalidate queries to refresh UI
-      await queryClient.invalidateQueries({ queryKey: ['blobbi-buddies'] });
+      await publishCompanionState(updatedCompanion);
     } finally {
-      // Keep lastAction set for animation, clear performing flag
       setIsPerforming(false);
-      // Clear lastAction after animation
       setTimeout(() => setLastAction(null), 1200);
     }
-  }, [user, companion, publishEvent, queryClient]);
+  }, [user, companion, publishEvent, publishCompanionState]);
 
   return {
     performAction,
+    publishCompanionState,
     isPerforming,
     lastAction,
   };
