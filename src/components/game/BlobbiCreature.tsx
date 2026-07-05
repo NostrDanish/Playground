@@ -1,4 +1,3 @@
-import { useMemo } from 'react';
 import { cn } from '@/lib/utils';
 import type { EvolutionStage, BlobbiMood, ActionType } from '@/lib/gameTypes';
 
@@ -14,24 +13,23 @@ interface BlobbiCreatureProps {
  * and animation states.
  */
 export function BlobbiCreature({ stage, mood, currentAction, className }: BlobbiCreatureProps) {
-  const animationClass = useMemo(() => {
+  const animationClass = (() => {
     if (currentAction === 'feed') return 'animate-blobbi-eat';
     if (currentAction === 'play') return 'animate-blobbi-bounce';
     if (currentAction === 'sleep') return 'animate-blobbi-sleep';
     if (currentAction === 'clean') return 'animate-blobbi-bounce';
     return 'animate-blobbi-idle';
-  }, [currentAction]);
+  })();
 
-  const size = useMemo(() => {
-    switch (stage) {
-      case 'egg': return { w: 64, h: 64 };
-      case 'baby': return { w: 80, h: 80 };
-      case 'child': return { w: 96, h: 96 };
-      case 'teen': return { w: 112, h: 112 };
-      case 'adult': return { w: 128, h: 128 };
-      case 'elder': return { w: 136, h: 136 };
-    }
-  }, [stage]);
+  const sizeMap: Record<EvolutionStage, { w: number; h: number }> = {
+    egg: { w: 64, h: 64 },
+    baby: { w: 80, h: 80 },
+    child: { w: 96, h: 96 },
+    teen: { w: 112, h: 112 },
+    adult: { w: 128, h: 128 },
+    elder: { w: 136, h: 136 },
+  };
+  const size = sizeMap[stage];
 
   return (
     <div className={cn('relative flex items-center justify-center', className)}>
@@ -93,19 +91,39 @@ export function BlobbiCreature({ stage, mood, currentAction, className }: Blobbi
   );
 }
 
-/** SVG pixel art Blobbi at different evolution stages */
-function BlobbiSVG({ stage, mood, width, height }: { stage: EvolutionStage; mood: BlobbiMood; width: number; height: number }) {
-  const bodyColor = useMemo(() => {
-    switch (mood) {
-      case 'ecstatic': return '#FFD700';
-      case 'happy': return '#FF8FAB';
-      case 'content': return '#A8D8EA';
-      case 'bored': return '#C4B7E6';
-      case 'sad': return '#8BA6C7';
-      case 'hungry': return '#FFB366';
-    }
-  }, [mood]);
+/** Get body color based on mood */
+function getBodyColor(mood: BlobbiMood): string {
+  switch (mood) {
+    case 'ecstatic': return '#FFD700';
+    case 'happy': return '#FF8FAB';
+    case 'content': return '#A8D8EA';
+    case 'bored': return '#C4B7E6';
+    case 'sad': return '#8BA6C7';
+    case 'hungry': return '#FFB366';
+  }
+}
 
+/** Get stage features */
+function getStageFeatures(stage: EvolutionStage) {
+  switch (stage) {
+    case 'baby':
+      return { bodyRx: 5, bodyRy: 5, hasCheeks: true, hasArms: false, hasCrown: false, hasWings: false };
+    case 'child':
+      return { bodyRx: 5.5, bodyRy: 5.5, hasCheeks: true, hasArms: true, hasCrown: false, hasWings: false };
+    case 'teen':
+      return { bodyRx: 5.5, bodyRy: 6, hasCheeks: true, hasArms: true, hasCrown: false, hasWings: false };
+    case 'adult':
+      return { bodyRx: 6, bodyRy: 6, hasCheeks: true, hasArms: true, hasCrown: false, hasWings: true };
+    case 'elder':
+      return { bodyRx: 6, bodyRy: 6, hasCheeks: true, hasArms: true, hasCrown: true, hasWings: true };
+    default:
+      return { bodyRx: 5, bodyRy: 5, hasCheeks: true, hasArms: false, hasCrown: false, hasWings: false };
+  }
+}
+
+/** SVG pixel art Blobbi at different evolution stages — pure rendering, no hooks */
+function BlobbiSVG({ stage, mood, width, height }: { stage: EvolutionStage; mood: BlobbiMood; width: number; height: number }) {
+  const bodyColor = getBodyColor(mood);
   const cheekColor = '#FF9999';
 
   if (stage === 'egg') {
@@ -113,108 +131,14 @@ function BlobbiSVG({ stage, mood, width, height }: { stage: EvolutionStage; mood
       <svg width={width} height={height} viewBox="0 0 16 16" className="pixel-art w-full h-full">
         <ellipse cx="8" cy="9" rx="5" ry="6" fill={bodyColor} />
         <ellipse cx="8" cy="9" rx="5" ry="6" fill="none" stroke="#00000030" strokeWidth="0.5" />
-        {/* Crack pattern */}
         <path d="M5 6 L7 8 L6 10" stroke="#ffffff60" strokeWidth="0.5" fill="none" />
         <path d="M10 5 L9 7 L11 9" stroke="#ffffff60" strokeWidth="0.5" fill="none" />
-        {/* Tiny sparkle */}
         <circle cx="6" cy="5" r="0.5" fill="#ffffff90" />
       </svg>
     );
   }
 
-  // Eyes based on mood
-  const eyes = useMemo(() => {
-    switch (mood) {
-      case 'ecstatic':
-        return (
-          <>
-            <path d="M5 6 Q6 5 7 6" stroke="#333" strokeWidth="0.6" fill="none" />
-            <path d="M9 6 Q10 5 11 6" stroke="#333" strokeWidth="0.6" fill="none" />
-          </>
-        );
-      case 'happy':
-        return (
-          <>
-            <circle cx="6" cy="6" r="1" fill="#333" />
-            <circle cx="10" cy="6" r="1" fill="#333" />
-            <circle cx="6.3" cy="5.7" r="0.3" fill="#fff" />
-            <circle cx="10.3" cy="5.7" r="0.3" fill="#fff" />
-          </>
-        );
-      case 'sad':
-        return (
-          <>
-            <circle cx="6" cy="6.5" r="1" fill="#333" />
-            <circle cx="10" cy="6.5" r="1" fill="#333" />
-            <circle cx="6.3" cy="6.2" r="0.3" fill="#fff" />
-            <circle cx="10.3" cy="6.2" r="0.3" fill="#fff" />
-            {/* Tear */}
-            <circle cx="7.5" cy="8" r="0.4" fill="#66b3ff" />
-          </>
-        );
-      case 'hungry':
-        return (
-          <>
-            <circle cx="6" cy="6" r="1.2" fill="#333" />
-            <circle cx="10" cy="6" r="1.2" fill="#333" />
-            <circle cx="6.4" cy="5.6" r="0.4" fill="#fff" />
-            <circle cx="10.4" cy="5.6" r="0.4" fill="#fff" />
-          </>
-        );
-      case 'bored':
-        return (
-          <>
-            <line x1="5" y1="6" x2="7" y2="6.3" stroke="#333" strokeWidth="0.6" />
-            <line x1="9" y1="6.3" x2="11" y2="6" stroke="#333" strokeWidth="0.6" />
-          </>
-        );
-      default: // content
-        return (
-          <>
-            <circle cx="6" cy="6" r="0.8" fill="#333" />
-            <circle cx="10" cy="6" r="0.8" fill="#333" />
-            <circle cx="6.2" cy="5.8" r="0.25" fill="#fff" />
-            <circle cx="10.2" cy="5.8" r="0.25" fill="#fff" />
-          </>
-        );
-    }
-  }, [mood]);
-
-  // Mouth based on mood
-  const mouth = useMemo(() => {
-    switch (mood) {
-      case 'ecstatic':
-        return <path d="M6 9 Q8 11 10 9" stroke="#333" strokeWidth="0.5" fill="#FF6B8A" />;
-      case 'happy':
-        return <path d="M6.5 9 Q8 10.5 9.5 9" stroke="#333" strokeWidth="0.5" fill="none" />;
-      case 'sad':
-        return <path d="M6.5 10 Q8 8.5 9.5 10" stroke="#333" strokeWidth="0.5" fill="none" />;
-      case 'hungry':
-        return <ellipse cx="8" cy="9.5" rx="1" ry="1.2" fill="#333" />;
-      case 'bored':
-        return <line x1="7" y1="9.5" x2="9" y2="9.5" stroke="#333" strokeWidth="0.5" />;
-      default:
-        return <path d="M7 9 Q8 10 9 9" stroke="#333" strokeWidth="0.5" fill="none" />;
-    }
-  }, [mood]);
-
-  // Scale and features based on stage
-  const stageFeatures = useMemo(() => {
-    switch (stage) {
-      case 'baby':
-        return { bodyRx: 5, bodyRy: 5, hasCheeks: true, hasArms: false, hasCrown: false, hasWings: false };
-      case 'child':
-        return { bodyRx: 5.5, bodyRy: 5.5, hasCheeks: true, hasArms: true, hasCrown: false, hasWings: false };
-      case 'teen':
-        return { bodyRx: 5.5, bodyRy: 6, hasCheeks: true, hasArms: true, hasCrown: false, hasWings: false };
-      case 'adult':
-        return { bodyRx: 6, bodyRy: 6, hasCheeks: true, hasArms: true, hasCrown: false, hasWings: true };
-      case 'elder':
-        return { bodyRx: 6, bodyRy: 6, hasCheeks: true, hasArms: true, hasCrown: true, hasWings: true };
-      default:
-        return { bodyRx: 5, bodyRy: 5, hasCheeks: true, hasArms: false, hasCrown: false, hasWings: false };
-    }
-  }, [stage]);
+  const stageFeatures = getStageFeatures(stage);
 
   return (
     <svg width={width} height={height} viewBox="0 0 16 16" className="pixel-art w-full h-full">
@@ -223,10 +147,10 @@ function BlobbiSVG({ stage, mood, width, height }: { stage: EvolutionStage; mood
 
       {/* Wings (adult/elder) */}
       {stageFeatures.hasWings && (
-        <>
+        <g>
           <ellipse cx="2.5" cy="8" rx="2" ry="3" fill={bodyColor} opacity="0.6" />
           <ellipse cx="13.5" cy="8" rx="2" ry="3" fill={bodyColor} opacity="0.6" />
-        </>
+        </g>
       )}
 
       {/* Body */}
@@ -238,10 +162,10 @@ function BlobbiSVG({ stage, mood, width, height }: { stage: EvolutionStage; mood
 
       {/* Arms (child+) */}
       {stageFeatures.hasArms && (
-        <>
+        <g>
           <ellipse cx="3.2" cy="9" rx="1" ry="1.5" fill={bodyColor} />
           <ellipse cx="12.8" cy="9" rx="1" ry="1.5" fill={bodyColor} />
-        </>
+        </g>
       )}
 
       {/* Feet */}
@@ -257,18 +181,93 @@ function BlobbiSVG({ stage, mood, width, height }: { stage: EvolutionStage; mood
       )}
 
       {/* Eyes */}
-      {eyes}
+      <BlobbiEyes mood={mood} />
 
       {/* Cheeks */}
       {stageFeatures.hasCheeks && (
-        <>
+        <g>
           <circle cx="4.5" cy="8" r="1" fill={cheekColor} opacity="0.5" />
           <circle cx="11.5" cy="8" r="1" fill={cheekColor} opacity="0.5" />
-        </>
+        </g>
       )}
 
       {/* Mouth */}
-      {mouth}
+      <BlobbiMouth mood={mood} />
     </svg>
   );
+}
+
+/** Eyes component — pure rendering */
+function BlobbiEyes({ mood }: { mood: BlobbiMood }) {
+  switch (mood) {
+    case 'ecstatic':
+      return (
+        <g>
+          <path d="M5 6 Q6 5 7 6" stroke="#333" strokeWidth="0.6" fill="none" />
+          <path d="M9 6 Q10 5 11 6" stroke="#333" strokeWidth="0.6" fill="none" />
+        </g>
+      );
+    case 'happy':
+      return (
+        <g>
+          <circle cx="6" cy="6" r="1" fill="#333" />
+          <circle cx="10" cy="6" r="1" fill="#333" />
+          <circle cx="6.3" cy="5.7" r="0.3" fill="#fff" />
+          <circle cx="10.3" cy="5.7" r="0.3" fill="#fff" />
+        </g>
+      );
+    case 'sad':
+      return (
+        <g>
+          <circle cx="6" cy="6.5" r="1" fill="#333" />
+          <circle cx="10" cy="6.5" r="1" fill="#333" />
+          <circle cx="6.3" cy="6.2" r="0.3" fill="#fff" />
+          <circle cx="10.3" cy="6.2" r="0.3" fill="#fff" />
+          <circle cx="7.5" cy="8" r="0.4" fill="#66b3ff" />
+        </g>
+      );
+    case 'hungry':
+      return (
+        <g>
+          <circle cx="6" cy="6" r="1.2" fill="#333" />
+          <circle cx="10" cy="6" r="1.2" fill="#333" />
+          <circle cx="6.4" cy="5.6" r="0.4" fill="#fff" />
+          <circle cx="10.4" cy="5.6" r="0.4" fill="#fff" />
+        </g>
+      );
+    case 'bored':
+      return (
+        <g>
+          <line x1="5" y1="6" x2="7" y2="6.3" stroke="#333" strokeWidth="0.6" />
+          <line x1="9" y1="6.3" x2="11" y2="6" stroke="#333" strokeWidth="0.6" />
+        </g>
+      );
+    default: // content
+      return (
+        <g>
+          <circle cx="6" cy="6" r="0.8" fill="#333" />
+          <circle cx="10" cy="6" r="0.8" fill="#333" />
+          <circle cx="6.2" cy="5.8" r="0.25" fill="#fff" />
+          <circle cx="10.2" cy="5.8" r="0.25" fill="#fff" />
+        </g>
+      );
+  }
+}
+
+/** Mouth component — pure rendering */
+function BlobbiMouth({ mood }: { mood: BlobbiMood }) {
+  switch (mood) {
+    case 'ecstatic':
+      return <path d="M6 9 Q8 11 10 9" stroke="#333" strokeWidth="0.5" fill="#FF6B8A" />;
+    case 'happy':
+      return <path d="M6.5 9 Q8 10.5 9.5 9" stroke="#333" strokeWidth="0.5" fill="none" />;
+    case 'sad':
+      return <path d="M6.5 10 Q8 8.5 9.5 10" stroke="#333" strokeWidth="0.5" fill="none" />;
+    case 'hungry':
+      return <ellipse cx="8" cy="9.5" rx="1" ry="1.2" fill="#333" />;
+    case 'bored':
+      return <line x1="7" y1="9.5" x2="9" y2="9.5" stroke="#333" strokeWidth="0.5" />;
+    default:
+      return <path d="M7 9 Q8 10 9 9" stroke="#333" strokeWidth="0.5" fill="none" />;
+  }
 }

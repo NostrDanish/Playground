@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useSeoMeta } from '@unhead/react';
+// Blobbi Buddies v1.0 - Tamagotchi-style Nostr pet game
 
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useBlobbiState } from '@/hooks/useBlobbiState';
